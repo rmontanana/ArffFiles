@@ -18,7 +18,7 @@ public:
 TEST_CASE("Version Test", "[ArffFiles]")
 {
     ArffFiles arff;
-    REQUIRE(arff.version() == "1.0.0");
+    REQUIRE(arff.version() == "1.1.0");
 }
 TEST_CASE("Load Test", "[ArffFiles]")
 {
@@ -65,14 +65,14 @@ TEST_CASE("Load Test", "[ArffFiles]")
 TEST_CASE("Load with class name", "[ArffFiles]")
 {
     ArffFiles arff;
-    arff.load(Paths::datasets("glass"), "Type");
+    arff.load(Paths::datasets("glass"), std::string("Type"));
     REQUIRE(arff.getClassName() == "Type");
     REQUIRE(arff.getClassType() == "{ 'build wind float', 'build wind non-float', 'vehic wind float', 'vehic wind non-float', containers, tableware, headlamps}");
     REQUIRE(arff.getLabels().size() == 6);
-    REQUIRE(arff.getLabels()[0] == "'build wind float'");
-    REQUIRE(arff.getLabels()[1] == "'vehic wind float'");
+    REQUIRE(arff.getLabels()[0] == "build wind float");
+    REQUIRE(arff.getLabels()[1] == "vehic wind float");
     REQUIRE(arff.getLabels()[2] == "tableware");
-    REQUIRE(arff.getLabels()[3] == "'build wind non-float'");
+    REQUIRE(arff.getLabels()[3] == "build wind non-float");
     REQUIRE(arff.getLabels()[4] == "headlamps");
     REQUIRE(arff.getLabels()[5] == "containers");
     REQUIRE(arff.getSize() == 214);
@@ -119,14 +119,34 @@ TEST_CASE("Load with class name as first attribute", "[ArffFiles]")
 TEST_CASE("Adult dataset", "[ArffFiles]")
 {
     ArffFiles arff;
-    arff.load(Paths::datasets("adult"));
+    arff.load(Paths::datasets("adult"), std::string("class"));
     REQUIRE(arff.getClassName() == "class");
-    REQUIRE(arff.getClassType() == "{ <=50K, >50K}");
+    REQUIRE(arff.getClassType() == "{ >50K, <=50K }");
     REQUIRE(arff.getLabels().size() == 2);
     REQUIRE(arff.getLabels()[0] == "<=50K");
     REQUIRE(arff.getLabels()[1] == ">50K");
-    REQUIRE(arff.getSize() == 32561);
-    REQUIRE(arff.getLines().size() == 32561);
-    REQUIRE(arff.getLines()[0] == "39, State-gov, 77516, Bachelors, 13, Never-married, Adm-clerical, Not-in-family, White   ");
+    REQUIRE(arff.getSize() == 45222);
+    REQUIRE(arff.getLines().size() == 45222);
+    REQUIRE(arff.getLines()[0] == "25, Private, 226802, 11th, 7, Never-married, Machine-op-inspct, Own-child, Black, Male, 0, 0, 40, United-States, <=50K");
+    auto X = arff.getX();
+    REQUIRE(X[0][0] == 25);
+    REQUIRE(X[1][0] == 0);
+    REQUIRE(X[2][0] == 226802);
+    auto states = arff.getStates();
+    auto numeric = arff.getNumericAttributes();
+    auto attributes = arff.getAttributes();
+    for (size_t i = 0; i < numeric.size(); ++i) {
+        auto feature = attributes.at(i).first;
+        auto state = states.at(feature);
+        if (!numeric.at(i)) {
+            std::cout << feature << ": ";
+            for (const auto& s : state) {
+                std::cout << s << ", ";
+            }
+            std::cout << std::endl;
+        } else {
+            std::cout << feature << " size: " << state.size() << std::endl;
+        }
+    }
 }
 
