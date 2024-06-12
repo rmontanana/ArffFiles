@@ -108,9 +108,10 @@ TEST_CASE("Load with class name as first attribute", "[ArffFiles]")
         {1.86094, 1.89165, 1.93921, 1.71752},
         {-0.207383, -0.193249, -0.239664, -0.218572} }
     };
+    auto X = arff.getX();
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j)
-            REQUIRE(arff.getX()[i][j] == Catch::Approx(expected[i][j]));
+            REQUIRE(X[i][j] == Catch::Approx(expected[i][j]));
     }
     auto expected_y = std::vector<int>{ 0, 0, 0, 0 };
     for (int i = 120; i < 124; ++i)
@@ -132,21 +133,16 @@ TEST_CASE("Adult dataset", "[ArffFiles]")
     REQUIRE(X[0][0] == 25);
     REQUIRE(X[1][0] == 0);
     REQUIRE(X[2][0] == 226802);
-    auto states = arff.getStates();
-    auto numeric = arff.getNumericAttributes();
-    auto attributes = arff.getAttributes();
-    for (size_t i = 0; i < numeric.size(); ++i) {
-        auto feature = attributes.at(i).first;
-        auto state = states.at(feature);
-        if (!numeric.at(i)) {
-            std::cout << feature << ": ";
-            for (const auto& s : state) {
-                std::cout << s << ", ";
-            }
-            std::cout << std::endl;
-        } else {
-            std::cout << feature << " size: " << state.size() << std::endl;
-        }
-    }
+    REQUIRE(X[3][0] == 0);
+    REQUIRE(X[4][0] == 7);
+    REQUIRE(X[5][0] == 0);
+    REQUIRE(X[6][0] == 0);
+    REQUIRE(X[7][0] == 0);
+    REQUIRE(X[8][0] == 0);
+    REQUIRE(X[9][0] == 0);
+    REQUIRE(X[10][0] == 0);
+    REQUIRE(X[11][0] == 0);
+    REQUIRE(X[12][0] == 40);
+    REQUIRE(X[13][0] == 0);
 }
 

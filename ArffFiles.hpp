@@ -69,7 +69,7 @@ public:
     }
     std::vector<std::vector<float>>& getX() { return X; }
     std::vector<int>& getY() { return y; }
-    std::vector<bool> getNumericAttributes() const { return numeric_features; }
+    std::map<std::string, bool> getNumericAttributes() const { return numeric_features; }
     std::vector<std::pair<std::string, std::string>> getAttributes() const { return attributes; };
     std::vector<std::string> split(const std::string& text, char delimiter)
     {
@@ -84,7 +84,7 @@ public:
     std::string version() const { return VERSION; }
 protected:
     std::vector<std::string> lines;
-    std::vector<bool> numeric_features;
+    std::map<std::string, bool> numeric_features;
     std::vector<std::pair<std::string, std::string>> attributes;
     std::string className;
     std::string classType;
@@ -98,14 +98,14 @@ private:
         //
         // Learn the numeric features
         //
-        numeric_features = std::vector<bool>(attributes.size(), false);
-        for (size_t i = 0; i < attributes.size(); i++) {
-            if (i == labelIndex) {
+        numeric_features.clear();
+        for (const auto& attribute : attributes) {
+            auto feature = attribute.first;
+            if (feature == className)
                 continue;
-            }
-            std::string values = attributes.at(i).second;
+            auto values = attribute.second;
             std::transform(values.begin(), values.end(), values.begin(), ::toupper);
-            numeric_features[i] = values == "REAL" || values == "INTEGER" || values == "NUMERIC";
+            numeric_features[feature] = values == "REAL" || values == "INTEGER" || values == "NUMERIC";
         }
     }
     std::vector<int> factorize(const std::string feature, const std::vector<std::string>& labels_t)
@@ -143,7 +143,7 @@ private:
                 if (pos++ == labelIndex) {
                     yy[i] = token;
                 } else {
-                    if (numeric_features[xIndex]) {
+                    if (numeric_features[attributes[xIndex].first]) {
                         X[xIndex][i] = stof(token);
                     } else {
                         Xs[xIndex][i] = token;
@@ -153,7 +153,7 @@ private:
             }
         }
         for (size_t i = 0; i < attributes.size(); i++) {
-            if (!numeric_features[i]) {
+            if (!numeric_features[attributes[i].first]) {
                 auto data = factorize(attributes[i].first, Xs[i]);
                 std::transform(data.begin(), data.end(), X[i].begin(), [](int x) { return float(x);});
             }
