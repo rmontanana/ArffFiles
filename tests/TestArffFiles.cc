@@ -116,4 +116,17 @@ TEST_CASE("Load with class name as first attribute", "[ArffFiles]")
     for (int i = 120; i < 124; ++i)
         REQUIRE(arff.getY()[i] == expected_y[i - 120]);
 }
+TEST_CASE("Adult dataset", "[ArffFiles]")
+{
+    ArffFiles arff;
+    arff.load(Paths::datasets("adult"));
+    REQUIRE(arff.getClassName() == "class");
+    REQUIRE(arff.getClassType() == "{ <=50K, >50K}");
+    REQUIRE(arff.getLabels().size() == 2);
+    REQUIRE(arff.getLabels()[0] == "<=50K");
+    REQUIRE(arff.getLabels()[1] == ">50K");
+    REQUIRE(arff.getSize() == 32561);
+    REQUIRE(arff.getLines().size() == 32561);
+    REQUIRE(arff.getLines()[0] == "39, State-gov, 77516, Bachelors, 13, Never-married, Adm-clerical, Not-in-family, White   ");
+}
 
