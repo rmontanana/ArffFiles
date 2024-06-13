@@ -18,7 +18,7 @@ public:
 TEST_CASE("Version Test", "[ArffFiles]")
 {
     ArffFiles arff;
-    REQUIRE(arff.version() == "1.0.0");
+    REQUIRE(arff.version() == "1.1.0");
 }
 TEST_CASE("Load Test", "[ArffFiles]")
 {
@@ -65,14 +65,14 @@ TEST_CASE("Load Test", "[ArffFiles]")
 TEST_CASE("Load with class name", "[ArffFiles]")
 {
     ArffFiles arff;
-    arff.load(Paths::datasets("glass"), "Type");
+    arff.load(Paths::datasets("glass"), std::string("Type"));
     REQUIRE(arff.getClassName() == "Type");
     REQUIRE(arff.getClassType() == "{ 'build wind float', 'build wind non-float', 'vehic wind float', 'vehic wind non-float', containers, tableware, headlamps}");
     REQUIRE(arff.getLabels().size() == 6);
-    REQUIRE(arff.getLabels()[0] == "'build wind float'");
-    REQUIRE(arff.getLabels()[1] == "'vehic wind float'");
+    REQUIRE(arff.getLabels()[0] == "build wind float");
+    REQUIRE(arff.getLabels()[1] == "vehic wind float");
     REQUIRE(arff.getLabels()[2] == "tableware");
-    REQUIRE(arff.getLabels()[3] == "'build wind non-float'");
+    REQUIRE(arff.getLabels()[3] == "build wind non-float");
     REQUIRE(arff.getLabels()[4] == "headlamps");
     REQUIRE(arff.getLabels()[5] == "containers");
     REQUIRE(arff.getSize() == 214);
@@ -108,12 +108,41 @@ TEST_CASE("Load with class name as first attribute", "[ArffFiles]")
         {1.86094, 1.89165, 1.93921, 1.71752},
         {-0.207383, -0.193249, -0.239664, -0.218572} }
     };
+    auto X = arff.getX();
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j)
-            REQUIRE(arff.getX()[i][j] == Catch::Approx(expected[i][j]));
+            REQUIRE(X[i][j] == Catch::Approx(expected[i][j]));
     }
     auto expected_y = std::vector<int>{ 0, 0, 0, 0 };
     for (int i = 120; i < 124; ++i)
         REQUIRE(arff.getY()[i] == expected_y[i - 120]);
+}
+TEST_CASE("Adult dataset", "[ArffFiles]")
+{
+    ArffFiles arff;
+    arff.load(Paths::datasets("adult"), std::string("class"));
+    REQUIRE(arff.getClassName() == "class");
+    REQUIRE(arff.getClassType() == "{ >50K, <=50K }");
+    REQUIRE(arff.getLabels().size() == 2);
+    REQUIRE(arff.getLabels()[0] == "<=50K");
+    REQUIRE(arff.getLabels()[1] == ">50K");
+    REQUIRE(arff.getSize() == 45222);
+    REQUIRE(arff.getLines().size() == 45222);
+    REQUIRE(arff.getLines()[0] == "25, Private, 226802, 11th, 7, Never-married, Machine-op-inspct, Own-child, Black, Male, 0, 0, 40, United-States, <=50K");
+    auto X = arff.getX();
+    REQUIRE(X[0][0] == 25);
+    REQUIRE(X[1][0] == 0);
+    REQUIRE(X[2][0] == 226802);
+    REQUIRE(X[3][0] == 0);
+    REQUIRE(X[4][0] == 7);
+    REQUIRE(X[5][0] == 0);
+    REQUIRE(X[6][0] == 0);
+    REQUIRE(X[7][0] == 0);
+    REQUIRE(X[8][0] == 0);
+    REQUIRE(X[9][0] == 0);
+    REQUIRE(X[10][0] == 0);
+    REQUIRE(X[11][0] == 0);
+    REQUIRE(X[12][0] == 40);
+    REQUIRE(X[13][0] == 0);
 }
 

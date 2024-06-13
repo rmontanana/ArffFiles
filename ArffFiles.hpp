@@ -7,10 +7,12 @@
 #include <sstream>
 #include <fstream>
 #include <cctype> // std::isdigit
-#include <algorithm> // std::all_of
+#include <algorithm> // std::all_of std::transform
+
+#include <iostream> // TODO remove
 
 class ArffFiles {
-    const std::string VERSION = "1.0.0";
+    const std::string VERSION = "1.1.0";
 public:
     ArffFiles() = default;
     void load(const std::string& fileName, bool classLast = true)
@@ -28,8 +30,9 @@ public:
             attributes.erase(attributes.begin());
             labelIndex = 0;
         }
+        preprocessDataset(labelIndex);
         generateDataset(labelIndex);
-    };
+    }
     void load(const std::string& fileName, const std::string& name)
     {
         int labelIndex;
@@ -48,27 +51,67 @@ public:
         if (!found) {
             throw std::invalid_argument("Class name not found");
         }
+        preprocessDataset(labelIndex);
         generateDataset(labelIndex);
-    };
-    std::vector<std::string> getLines() const { return lines; };
-    unsigned long int getSize() const { return lines.size(); };
-    std::string getClassName() const { return className; };
-    std::string getClassType() const { return classType; };
-    std::vector<std::string> getLabels() const { return labels; }
+    }
+    std::vector<std::string> getLines() const { return lines; }
+    unsigned long int getSize() const { return lines.size(); }
+    std::string getClassName() const { return className; }
+    std::string getClassType() const { return classType; }
+    std::map<std::string, std::vector<std::string>> getStates() const { return states; }
+    std::vector<std::string> getLabels() const { return states.at(className); }
     static std::string trim(const std::string& source)
     {
         std::string s(source);
         s.erase(0, s.find_first_not_of(" '\n\r\t"));
         s.erase(s.find_last_not_of(" '\n\r\t") + 1);
         return s;
-    };
-    std::vector<std::vector<float>>& getX() { return X; };
+    }
+    std::vector<std::vector<float>>& getX() { return X; }
     std::vector<int>& getY() { return y; }
+    std::map<std::string, bool> getNumericAttributes() const { return numeric_features; }
     std::vector<std::pair<std::string, std::string>> getAttributes() const { return attributes; };
-    std::vector<int> factorize(const std::vector<std::string>& labels_t)
+    std::vector<std::string> split(const std::string& text, char delimiter)
+    {
+        std::vector<std::string> result;
+        std::stringstream ss(text);
+        std::string token;
+        while (std::getline(ss, token, delimiter)) {
+            result.push_back(trim(token));
+        }
+        return result;
+    }
+    std::string version() const { return VERSION; }
+protected:
+    std::vector<std::string> lines;
+    std::map<std::string, bool> numeric_features;
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::string className;
+    std::string classType;
+    std::vector<std::vector<float>> X;
+    std::vector<std::vector<std::string>> Xs;
+    std::vector<int> y;
+    std::map<std::string, std::vector<std::string>> states;
+private:
+    void preprocessDataset(int labelIndex)
+    {
+        //
+        // Learn the numeric features
+        //
+        numeric_features.clear();
+        for (const auto& attribute : attributes) {
+            auto feature = attribute.first;
+            if (feature == className)
+                continue;
+            auto values = attribute.second;
+            std::transform(values.begin(), values.end(), values.begin(), ::toupper);
+            numeric_features[feature] = values == "REAL" || values == "INTEGER" || values == "NUMERIC";
+        }
+    }
+    std::vector<int> factorize(const std::string feature, const std::vector<std::string>& labels_t)
     {
         std::vector<int> yy;
-        labels.clear();
+        states.at(feature).clear();
         yy.reserve(labels_t.size());
         std::map<std::string, int> labelMap;
         int i = 0;
@@ -77,54 +120,46 @@ public:
                 labelMap[label] = i++;
                 bool allDigits = std::all_of(label.begin(), label.end(), ::isdigit);
                 if (allDigits)
-                    labels.push_back("Class " + label);
+                    states[feature].push_back("Class " + label);
                 else
-                    labels.push_back(label);
+                    states[feature].push_back(label);
             }
             yy.push_back(labelMap[label]);
         }
         return yy;
-    };
-    std::string version() const { return VERSION; };
-protected:
-    std::vector<std::string> lines;
-    std::vector<std::pair<std::string, std::string>> attributes;
-    std::string className;
-    std::string classType;
-    std::vector<std::vector<float>> X;
-    std::vector<int> y;
-    std::vector<std::string> labels;
-private:
+    }
     void generateDataset(int labelIndex)
     {
         X = std::vector<std::vector<float>>(attributes.size(), std::vector<float>(lines.size()));
+        Xs = std::vector<std::vector<std::string>>(attributes.size(), std::vector<std::string>(lines.size()));
         auto yy = std::vector<std::string>(lines.size(), "");
-        auto removeLines = std::vector<int>(); // Lines with missing values
         for (size_t i = 0; i < lines.size(); i++) {
             std::stringstream ss(lines[i]);
             std::string value;
             int pos = 0;
             int xIndex = 0;
-            while (getline(ss, value, ',')) {
+            auto tokens = split(lines[i], ',');
+            for (const auto& token : tokens) {
                 if (pos++ == labelIndex) {
-                    yy[i] = value;
+                    yy[i] = token;
                 } else {
-                    if (value == "?") {
-                        X[xIndex++][i] = -1;
-                        removeLines.push_back(i);
-                    } else
-                        X[xIndex++][i] = stof(value);
+                    if (numeric_features[attributes[xIndex].first]) {
+                        X[xIndex][i] = stof(token);
+                    } else {
+                        Xs[xIndex][i] = token;
+                    }
+                    xIndex++;
                 }
             }
         }
-        for (auto i : removeLines) {
-            yy.erase(yy.begin() + i);
-            for (auto& x : X) {
-                x.erase(x.begin() + i);
+        for (size_t i = 0; i < attributes.size(); i++) {
+            if (!numeric_features[attributes[i].first]) {
+                auto data = factorize(attributes[i].first, Xs[i]);
+                std::transform(data.begin(), data.end(), X[i].begin(), [](int x) { return float(x);});
             }
         }
-        y = factorize(yy);
-    };
+        y = factorize(className, yy);
+    }
     void loadCommon(std::string fileName)
     {
         std::ifstream file(fileName);
@@ -152,12 +187,19 @@ private:
             if (line[0] == '@') {
                 continue;
             }
+            if (line.find("?", 0) != std::string::npos) {
+                // ignore lines with missing values
+                continue;
+            }
             lines.push_back(line);
         }
         file.close();
+        for (const auto& attribute : attributes) {
+            states[attribute.first] = std::vector<std::string>();
+        }
         if (attributes.empty())
             throw std::invalid_argument("No attributes found");
-    };
+    }
 };
 
 #endif
