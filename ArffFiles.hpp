@@ -9,8 +9,6 @@
 #include <cctype> // std::isdigit
 #include <algorithm> // std::all_of std::transform
 
-#include <iostream> // TODO remove
-
 class ArffFiles {
     const std::string VERSION = "1.1.0";
 public:
