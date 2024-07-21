@@ -41,7 +41,12 @@ add_subdirectory(config)
 # -------
 if (ENABLE_TESTING)
   MESSAGE("Testing enabled")
-  add_git_submodule("tests/lib/catch2")  
+  Include(FetchContent)
+    FetchContent_Declare(Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.3.2
+    )
+    FetchContent_MakeAvailable(Catch2)
   include(CTest)
   add_subdirectory(tests)
 endif (ENABLE_TESTING)
