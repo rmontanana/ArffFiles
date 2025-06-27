@@ -72,6 +72,45 @@ class ArffFiles {
     
 public:
     ArffFiles() = default;
+    
+    // Move constructor
+    ArffFiles(ArffFiles&& other) noexcept
+        : lines(std::move(other.lines))
+        , numeric_features(std::move(other.numeric_features))
+        , attributes(std::move(other.attributes))
+        , className(std::move(other.className))
+        , classType(std::move(other.classType))
+        , states(std::move(other.states))
+        , X(std::move(other.X))
+        , y(std::move(other.y))
+    {
+        // Other object is left in a valid but unspecified state
+    }
+    
+    // Move assignment operator
+    ArffFiles& operator=(ArffFiles&& other) noexcept
+    {
+        if (this != &other) {
+            lines = std::move(other.lines);
+            numeric_features = std::move(other.numeric_features);
+            attributes = std::move(other.attributes);
+            className = std::move(other.className);
+            classType = std::move(other.classType);
+            states = std::move(other.states);
+            X = std::move(other.X);
+            y = std::move(other.y);
+        }
+        return *this;
+    }
+    
+    // Copy constructor (explicitly defaulted)
+    ArffFiles(const ArffFiles& other) = default;
+    
+    // Copy assignment operator (explicitly defaulted)
+    ArffFiles& operator=(const ArffFiles& other) = default;
+    
+    // Destructor (explicitly defaulted)
+    ~ArffFiles() = default;
     void load(const std::string& fileName, bool classLast = true)
     {
         if (fileName.empty()) {
@@ -192,6 +231,17 @@ public:
     const std::vector<int>& getY() const { return y; }
     const std::map<std::string, bool>& getNumericAttributes() const { return numeric_features; }
     const std::vector<std::pair<std::string, std::string>>& getAttributes() const { return attributes; };
+    
+    // Move-enabled getters for efficient data transfer
+    // WARNING: These methods move data OUT of the object, leaving it in an empty but valid state
+    // Use these when you want to transfer ownership of large data structures for performance
+    std::vector<std::vector<float>> moveX() noexcept { return std::move(X); }
+    std::vector<int> moveY() noexcept { return std::move(y); }
+    std::vector<std::string> moveLines() noexcept { return std::move(lines); }
+    std::map<std::string, std::vector<std::string>> moveStates() noexcept { return std::move(states); }
+    std::vector<std::pair<std::string, std::string>> moveAttributes() noexcept { return std::move(attributes); }
+    std::map<std::string, bool> moveNumericAttributes() noexcept { return std::move(numeric_features); }
+    
     std::vector<std::string> split(const std::string& text, char delimiter)
     {
         std::vector<std::string> result;

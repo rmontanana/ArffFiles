@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Eliminate redundant memory allocations and enhance memory usage
 - Enhance error handling with exceptions
 - Change `getSize` return type to `size_t` for better compatibility with standard library containers
+- Implement move semantics for better performance
 
 
 ## [1.1.0] 2024-07-24 String Values in Features
