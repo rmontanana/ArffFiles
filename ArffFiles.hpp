@@ -66,7 +66,9 @@ public:
         return s;
     }
     std::vector<std::vector<float>>& getX() { return X; }
+    const std::vector<std::vector<float>>& getX() const { return X; }
     std::vector<int>& getY() { return y; }
+    const std::vector<int>& getY() const { return y; }
     std::map<std::string, bool> getNumericAttributes() const { return numeric_features; }
     std::vector<std::pair<std::string, std::string>> getAttributes() const { return attributes; };
     std::vector<std::string> split(const std::string& text, char delimiter)
@@ -86,8 +88,7 @@ protected:
     std::vector<std::pair<std::string, std::string>> attributes;
     std::string className;
     std::string classType;
-    std::vector<std::vector<float>> X;
-    std::vector<std::vector<std::string>> Xs;
+    std::vector<std::vector<float>> X;  // X[feature][sample] - feature-major layout
     std::vector<int> y;
     std::map<std::string, std::vector<std::string>> states;
 private:
@@ -128,34 +129,64 @@ private:
     }
     void generateDataset(int labelIndex)
     {
-        X = std::vector<std::vector<float>>(attributes.size(), std::vector<float>(lines.size()));
-        Xs = std::vector<std::vector<std::string>>(attributes.size(), std::vector<std::string>(lines.size()));
-        auto yy = std::vector<std::string>(lines.size(), "");
-        for (size_t i = 0; i < lines.size(); i++) {
-            std::stringstream ss(lines[i]);
-            std::string value;
+        const size_t numSamples = lines.size();
+        const size_t numFeatures = attributes.size();
+        
+        // Pre-allocate with feature-major layout: X[feature][sample]
+        X.assign(numFeatures, std::vector<float>(numSamples));
+        
+        // Temporary storage for categorical data per feature (only for non-numeric features)
+        std::vector<std::vector<std::string>> categoricalData(numFeatures);
+        for (size_t i = 0; i < numFeatures; ++i) {
+            if (!numeric_features[attributes[i].first]) {
+                categoricalData[i].reserve(numSamples);
+            }
+        }
+        
+        std::vector<std::string> yy;
+        yy.reserve(numSamples);
+        
+        // Parse each sample
+        for (size_t sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx) {
+            const auto tokens = split(lines[sampleIdx], ',');
+            
             int pos = 0;
-            int xIndex = 0;
-            auto tokens = split(lines[i], ',');
+            int featureIdx = 0;
+            
             for (const auto& token : tokens) {
                 if (pos++ == labelIndex) {
-                    yy[i] = token;
+                    yy.push_back(token);
                 } else {
-                    if (numeric_features[attributes[xIndex].first]) {
-                        X[xIndex][i] = stof(token);
+                    const auto& featureName = attributes[featureIdx].first;
+                    if (numeric_features.at(featureName)) {
+                        // Parse numeric value with exception handling
+                        try {
+                            X[featureIdx][sampleIdx] = std::stof(token);
+                        } catch (const std::exception& e) {
+                            throw std::invalid_argument("Invalid numeric value '" + token + "' at sample " + std::to_string(sampleIdx) + ", feature " + featureName);
+                        }
                     } else {
-                        Xs[xIndex][i] = token;
+                        // Store categorical value temporarily
+                        categoricalData[featureIdx].push_back(token);
                     }
-                    xIndex++;
+                    featureIdx++;
                 }
             }
         }
-        for (size_t i = 0; i < attributes.size(); i++) {
-            if (!numeric_features[attributes[i].first]) {
-                auto data = factorize(attributes[i].first, Xs[i]);
-                std::transform(data.begin(), data.end(), X[i].begin(), [](int x) { return float(x);});
+        
+        // Convert categorical features to numeric
+        for (size_t featureIdx = 0; featureIdx < numFeatures; ++featureIdx) {
+            if (!numeric_features[attributes[featureIdx].first]) {
+                const auto& featureName = attributes[featureIdx].first;
+                auto encodedValues = factorize(featureName, categoricalData[featureIdx]);
+                
+                // Copy encoded values to X[feature][sample]
+                for (size_t sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx) {
+                    X[featureIdx][sampleIdx] = static_cast<float>(encodedValues[sampleIdx]);
+                }
             }
         }
+        
         y = factorize(className, yy);
     }
     void loadCommon(std::string fileName)
@@ -176,9 +207,13 @@ private:
             if (line.find("@attribute") != std::string::npos || line.find("@ATTRIBUTE") != std::string::npos) {
                 std::stringstream ss(line);
                 ss >> keyword >> attribute;
-                type = "";
-                while (ss >> type_w)
-                    type += type_w + " ";
+                // Efficiently build type string
+                std::ostringstream typeStream;
+                while (ss >> type_w) {
+                    if (typeStream.tellp() > 0) typeStream << " ";
+                    typeStream << type_w;
+                }
+                type = typeStream.str();
                 attributes.emplace_back(trim(attribute), trim(type));
                 continue;
             }
