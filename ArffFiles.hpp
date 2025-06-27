@@ -126,11 +126,11 @@ public:
         }
         return summarizeFile(fileName, className);
     }
-    std::vector<std::string> getLines() const { return lines; }
-    unsigned long int getSize() const { return lines.size(); }
+    const std::vector<std::string>& getLines() const { return lines; }
+    size_t getSize() const { return lines.size(); }
     std::string getClassName() const { return className; }
     std::string getClassType() const { return classType; }
-    std::map<std::string, std::vector<std::string>> getStates() const { return states; }
+    const std::map<std::string, std::vector<std::string>>& getStates() const { return states; }
     std::vector<std::string> getLabels() const { return states.at(className); }
     static std::string trim(const std::string& source)
     {
@@ -143,8 +143,8 @@ public:
     const std::vector<std::vector<float>>& getX() const { return X; }
     std::vector<int>& getY() { return y; }
     const std::vector<int>& getY() const { return y; }
-    std::map<std::string, bool> getNumericAttributes() const { return numeric_features; }
-    std::vector<std::pair<std::string, std::string>> getAttributes() const { return attributes; };
+    const std::map<std::string, bool>& getNumericAttributes() const { return numeric_features; }
+    const std::vector<std::pair<std::string, std::string>>& getAttributes() const { return attributes; };
     std::vector<std::string> split(const std::string& text, char delimiter)
     {
         std::vector<std::string> result;
