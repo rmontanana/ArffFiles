@@ -14,7 +14,7 @@ public:
         std::string file_name = path + name + ".arff";
         return file_name;
     }
-    
+
     static std::string error_datasets(const std::string& name)
     {
         std::string path = { arffFiles_data_path.begin(), arffFiles_data_path.end() };
@@ -162,23 +162,25 @@ TEST_CASE("Adult dataset", "[ArffFiles]")
 TEST_CASE("Input Validation Errors", "[ArffFiles][Error]")
 {
     ArffFiles arff;
-    
-    SECTION("Empty filename") {
+
+    SECTION("Empty filename")
+    {
         REQUIRE_THROWS_AS(arff.load(""), std::invalid_argument);
         REQUIRE_THROWS_WITH(arff.load(""), "File name cannot be empty");
     }
-    
-    SECTION("Nonexistent file") {
+
+    SECTION("Nonexistent file")
+    {
         REQUIRE_THROWS_AS(arff.load("nonexistent_file.arff"), std::invalid_argument);
         REQUIRE_THROWS_WITH(arff.load("nonexistent_file.arff"), Catch::Matchers::ContainsSubstring("Unable to open file"));
     }
-    
+
     // TODO: These tests need refinement to trigger the validation conditions properly
     // SECTION("Empty class name") {
     //     REQUIRE_THROWS_AS(arff.load(Paths::datasets("iris"), ""), std::invalid_argument);
     //     REQUIRE_THROWS_WITH(arff.load(Paths::datasets("iris"), ""), "Class name cannot be empty");
     // }
-    
+
     // SECTION("Invalid class name") {
     //     REQUIRE_THROWS_AS(arff.load(Paths::datasets("iris"), "nonexistent_class"), std::invalid_argument);
     //     REQUIRE_THROWS_WITH(arff.load(Paths::datasets("iris"), "nonexistent_class"), 
@@ -189,77 +191,150 @@ TEST_CASE("Input Validation Errors", "[ArffFiles][Error]")
 TEST_CASE("File Structure Validation Errors", "[ArffFiles][Error]")
 {
     ArffFiles arff;
-    
-    SECTION("No attributes defined") {
+
+    SECTION("No attributes defined")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("empty_attributes")), std::invalid_argument);
         REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_attributes")), "No attributes found in file");
     }
-    
-    SECTION("No data samples") {
+
+    SECTION("No data samples")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("no_data")), std::invalid_argument);
         REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("no_data")), "No data samples found in file");
     }
-    
-    SECTION("Duplicate attribute names") {
+
+    SECTION("Duplicate attribute names")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("duplicate_attributes")), std::invalid_argument);
-        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("duplicate_attributes")), 
-                           Catch::Matchers::ContainsSubstring("Duplicate attribute name"));
+        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("duplicate_attributes")),
+            Catch::Matchers::ContainsSubstring("Duplicate attribute name"));
     }
-    
+
     // TODO: This test needs a better test case to trigger empty attribute name validation
     // SECTION("Empty attribute name") {
     //     REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("empty_attribute_name")), std::invalid_argument);
     //     REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_attribute_name")), 
     //                        Catch::Matchers::ContainsSubstring("Empty attribute name"));
     // }
-    
-    SECTION("Empty attribute type") {
+
+    SECTION("Empty attribute type")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("empty_attribute_type")), std::invalid_argument);
-        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_attribute_type")), 
-                           Catch::Matchers::ContainsSubstring("Empty attribute type"));
+        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_attribute_type")),
+            Catch::Matchers::ContainsSubstring("Empty attribute type"));
     }
 }
 
 TEST_CASE("Data Parsing Validation Errors", "[ArffFiles][Error]")
 {
     ArffFiles arff;
-    
-    SECTION("Wrong number of tokens") {
+
+    SECTION("Wrong number of tokens")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("wrong_token_count")), std::invalid_argument);
-        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("wrong_token_count")), 
-                           Catch::Matchers::ContainsSubstring("has") && 
-                           Catch::Matchers::ContainsSubstring("tokens, expected"));
+        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("wrong_token_count")),
+            Catch::Matchers::ContainsSubstring("has") &&
+            Catch::Matchers::ContainsSubstring("tokens, expected"));
     }
-    
-    SECTION("Invalid numeric value") {
+
+    SECTION("Invalid numeric value")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("invalid_numeric")), std::invalid_argument);
-        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("invalid_numeric")), 
-                           Catch::Matchers::ContainsSubstring("Invalid numeric value"));
+        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("invalid_numeric")),
+            Catch::Matchers::ContainsSubstring("Invalid numeric value"));
     }
-    
+
     // TODO: This test needs a better test case to trigger empty class label validation
     // SECTION("Empty class label") {
     //     REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("empty_class_label")), std::invalid_argument);
     //     REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_class_label")), 
     //                        Catch::Matchers::ContainsSubstring("Empty class label"));
     // }
-    
-    SECTION("Empty categorical value") {
+
+    SECTION("Empty categorical value")
+    {
         REQUIRE_THROWS_AS(arff.load(Paths::error_datasets("empty_categorical")), std::invalid_argument);
-        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_categorical")), 
-                           Catch::Matchers::ContainsSubstring("Empty categorical value"));
+        REQUIRE_THROWS_WITH(arff.load(Paths::error_datasets("empty_categorical")),
+            Catch::Matchers::ContainsSubstring("Empty categorical value"));
     }
 }
 
 TEST_CASE("Missing Value Detection", "[ArffFiles][MissingValues]")
 {
     ArffFiles arff;
-    
-    SECTION("Quoted question marks should not be treated as missing") {
+
+    SECTION("Quoted question marks should not be treated as missing")
+    {
         // This should NOT throw an error - quoted question marks are valid data
         REQUIRE_NOTHROW(arff.load(Paths::error_datasets("quoted_question_mark")));
         // Note: This test would need a valid quoted string ARFF for string attributes
         // For now, it tests that our quote detection logic works
+    }
+}
+
+TEST_CASE("Summary Functionality", "[ArffFiles][Summary]")
+{
+    SECTION("Basic summary with class last")
+    {
+        auto summary = ArffFiles::summary(Paths::datasets("iris"));
+
+        REQUIRE(summary.numSamples == 150);
+        REQUIRE(summary.numFeatures == 4);
+        REQUIRE(summary.numClasses == 3);
+        REQUIRE(summary.className == "class");
+        REQUIRE(summary.classType == "{Iris-setosa,Iris-versicolor,Iris-virginica}");
+        REQUIRE(summary.classLabels.size() == 3);
+        REQUIRE(summary.featureInfo.size() == 4);
+
+        // Check feature information
+        REQUIRE(summary.featureInfo[0].first == "sepallength");
+        REQUIRE(summary.featureInfo[0].second == "REAL");
+        REQUIRE(summary.featureInfo[1].first == "sepalwidth");
+        REQUIRE(summary.featureInfo[1].second == "REAL");
+        REQUIRE(summary.featureInfo[2].first == "petallength");
+        REQUIRE(summary.featureInfo[2].second == "REAL");
+        REQUIRE(summary.featureInfo[3].first == "petalwidth");
+        REQUIRE(summary.featureInfo[3].second == "REAL");
+    }
+
+    SECTION("Summary with specific class name")
+    {
+        auto summary = ArffFiles::summary(Paths::datasets("glass"), "Type");
+
+        REQUIRE(summary.numSamples == 214);
+        REQUIRE(summary.numFeatures == 9);
+        REQUIRE(summary.numClasses == 6);
+        REQUIRE(summary.className == "Type");
+        REQUIRE(summary.classType == "{ 'build wind float', 'build wind non-float', 'vehic wind float', 'vehic wind non-float', containers, tableware, headlamps}");
+        REQUIRE(summary.classLabels.size() == 6);
+        REQUIRE(summary.featureInfo.size() == 9);
+    }
+
+    SECTION("Summary with class first")
+    {
+        auto summary = ArffFiles::summary(Paths::datasets("kdd_JapaneseVowels"), false);
+
+        REQUIRE(summary.className == "speaker");
+        REQUIRE(summary.numFeatures > 0);
+        REQUIRE(summary.numClasses > 0);
+        REQUIRE(summary.numSamples > 0);
+    }
+
+    SECTION("Summary error handling")
+    {
+        REQUIRE_THROWS_AS(ArffFiles::summary(""), std::invalid_argument);
+        REQUIRE_THROWS_WITH(ArffFiles::summary(""), "File name cannot be empty");
+
+        REQUIRE_THROWS_AS(ArffFiles::summary("nonexistent.arff"), std::invalid_argument);
+        REQUIRE_THROWS_WITH(ArffFiles::summary("nonexistent.arff"), Catch::Matchers::ContainsSubstring("Unable to open file"));
+
+        std::cout << "Now it's time to test class name errors" << std::endl;
+        REQUIRE_THROWS_AS(ArffFiles::summary(Paths::datasets("iris"), ""), std::invalid_argument);
+        REQUIRE_THROWS_WITH(ArffFiles::summary(Paths::datasets("iris"), ""), "Class name cannot be empty");
+
+        REQUIRE_THROWS_AS(ArffFiles::summary(Paths::datasets("iris"), "nonexistent"), std::invalid_argument);
+        REQUIRE_THROWS_WITH(ArffFiles::summary(Paths::datasets("iris"), "nonexistent"), "Class name 'nonexistent' not found in attributes");
     }
 }
 

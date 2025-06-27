@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Claude TECHNICAL_REPORT.md for detailed analysis
 - Claude CLAUDE.md for AI engine usage
+- Method summary that returns the number of features, samples, and classes without loading the data
 
 ### Internal
 
