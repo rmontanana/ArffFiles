@@ -496,19 +496,22 @@ private:
         return false;
     }
 
-    // Helper function for summary with classLast parameter
-    static ArffSummary summarizeFile(const std::string& fileName, bool classLast)
-    {
+    // Common helper function to parse ARFF file attributes and count samples
+    static int parseArffFile(const std::string& fileName, 
+                            std::vector<std::pair<std::string, std::string>>& attributes,
+                            std::set<std::string>& uniqueClasses,
+                            size_t& sampleCount,
+                            int classIndex = -1,
+                            const std::string& classNameToFind = "") {
         std::ifstream file(fileName);
         if (!file.is_open()) {
             throw std::invalid_argument("Unable to open file: " + fileName);
         }
 
-        ArffSummary summary;
-        std::vector<std::pair<std::string, std::string>> attributes;
-        std::set<std::string> uniqueClasses;
         std::string line;
-        size_t sampleCount = 0;
+        attributes.clear();
+        uniqueClasses.clear();
+        sampleCount = 0;
 
         // Parse header
         while (getline(file, line)) {
@@ -549,6 +552,61 @@ private:
         if (attributes.empty()) {
             throw std::invalid_argument("No attributes found in file");
         }
+
+        // Find class index if class name is specified
+        int actualClassIndex = classIndex;
+        if (!classNameToFind.empty()) {
+            actualClassIndex = -1;
+            for (size_t i = 0; i < attributes.size(); ++i) {
+                if (attributes[i].first == classNameToFind) {
+                    actualClassIndex = static_cast<int>(i);
+                    break;
+                }
+            }
+            if (actualClassIndex == -1) {
+                throw std::invalid_argument("Class name '" + classNameToFind + "' not found in attributes");
+            }
+        }
+
+        // Count samples and collect unique class values
+        do {
+            if (!line.empty() && line[0] != '@' && line[0] != '%' && !containsMissingValueStatic(line)) {
+                auto tokens = splitStatic(line, ',');
+                if (!tokens.empty()) {
+                    std::string classValue;
+                    if (actualClassIndex == -1) {
+                        // Use last token (default behavior)
+                        classValue = trim(tokens.back());
+                    } else if (actualClassIndex == 0) {
+                        // Use first token
+                        classValue = trim(tokens.front());
+                    } else if (actualClassIndex > 0 && static_cast<size_t>(actualClassIndex) < tokens.size()) {
+                        // Use specific index
+                        classValue = trim(tokens[actualClassIndex]);
+                    }
+                    
+                    if (!classValue.empty()) {
+                        uniqueClasses.insert(classValue);
+                        sampleCount++;
+                    }
+                }
+            }
+        }
+        while (getline(file, line));
+        
+        return actualClassIndex;
+    }
+
+    // Helper function for summary with classLast parameter
+    static ArffSummary summarizeFile(const std::string& fileName, bool classLast)
+    {
+        ArffSummary summary;
+        std::vector<std::pair<std::string, std::string>> attributes;
+        std::set<std::string> uniqueClasses;
+        size_t sampleCount = 0;
+
+        // Use common parsing function
+        parseArffFile(fileName, attributes, uniqueClasses, sampleCount, classLast ? -1 : 0);
 
         // Determine class attribute
         if (classLast) {
@@ -568,25 +626,6 @@ private:
             summary.featureInfo.emplace_back(attr.first, attr.second);
         }
 
-        // Count samples and collect unique class values
-        do {
-            if (!line.empty() && line[0] != '@' && line[0] != '%' && !containsMissingValueStatic(line)) {
-                auto tokens = splitStatic(line, ',');
-                if (!tokens.empty()) {
-                    std::string classValue;
-                    if (classLast) {
-                        classValue = trim(tokens.back());
-                    } else {
-                        classValue = trim(tokens.front());
-                    }
-                    if (!classValue.empty()) {
-                        uniqueClasses.insert(classValue);
-                        sampleCount++;
-                    }
-                }
-            }
-        }
-        while (getline(file, line));
 
 
         summary.numSamples = sampleCount;
@@ -599,67 +638,18 @@ private:
     // Helper function for summary with className parameter
     static ArffSummary summarizeFile(const std::string& fileName, const std::string& className)
     {
-        std::ifstream file(fileName);
-        if (!file.is_open()) {
-            throw std::invalid_argument("Unable to open file: " + fileName);
-        }
-
         ArffSummary summary;
         std::vector<std::pair<std::string, std::string>> attributes;
         std::set<std::string> uniqueClasses;
-        std::string line;
         size_t sampleCount = 0;
         int classIndex = -1;
 
-        // Parse header
-        while (getline(file, line)) {
-            if (line.empty() || line[0] == '%' || line == "\r" || line == " ") {
-                continue;
-            }
-            if (line.find("@attribute") != std::string::npos || line.find("@ATTRIBUTE") != std::string::npos) {
-                std::stringstream ss(line);
-                std::string keyword, attribute, type_w;
-                ss >> keyword >> attribute;
+        // Use common parsing function to find class by name
+        classIndex = parseArffFile(fileName, attributes, uniqueClasses, sampleCount, -1, className);
 
-                if (attribute.empty()) {
-                    throw std::invalid_argument("Empty attribute name in line: " + line);
-                }
-
-                // Build type string
-                std::ostringstream typeStream;
-                while (ss >> type_w) {
-                    if (typeStream.tellp() > 0) typeStream << " ";
-                    typeStream << type_w;
-                }
-                std::string type = typeStream.str();
-
-                if (type.empty()) {
-                    throw std::invalid_argument("Empty attribute type for attribute: " + attribute);
-                }
-
-                attributes.emplace_back(trim(attribute), trim(type));
-
-                if (trim(attribute) == className) {
-                    classIndex = attributes.size() - 1;
-                    summary.className = trim(attribute);
-                    summary.classType = trim(type);
-                }
-                continue;
-            }
-            if (line[0] == '@') {
-                continue;
-            }
-            // Start of data section
-            break;
-        }
-
-        if (attributes.empty()) {
-            throw std::invalid_argument("No attributes found in file");
-        }
-
-        if (classIndex == -1) {
-            throw std::invalid_argument("Class name '" + className + "' not found in attributes");
-        }
+        // Set class information from the found attribute
+        summary.className = attributes[classIndex].first;
+        summary.classType = attributes[classIndex].second;
 
         // Remove class attribute from features
         attributes.erase(attributes.begin() + classIndex);
@@ -669,22 +659,6 @@ private:
         for (const auto& attr : attributes) {
             summary.featureInfo.emplace_back(attr.first, attr.second);
         }
-
-        // Count samples and collect unique class values
-        do {
-            if (!line.empty() && line[0] != '@' && line[0] != '%' && !containsMissingValueStatic(line)) {
-                auto tokens = splitStatic(line, ',');
-                if (tokens.size() > static_cast<size_t>(classIndex)) {
-                    std::string classValue = trim(tokens[classIndex]);
-                    if (!classValue.empty()) {
-                        uniqueClasses.insert(classValue);
-                        sampleCount++;
-                    }
-                }
-            }
-        }
-        while (getline(file, line));
-
 
         summary.numSamples = sampleCount;
         summary.numClasses = uniqueClasses.size();
