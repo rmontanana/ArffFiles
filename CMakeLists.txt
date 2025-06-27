@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(ArffFiles
-  VERSION 1.0.1
+  VERSION 1.2.0
   DESCRIPTION "Library to read Arff Files and return STL vectors with the data read."
   HOMEPAGE_URL "https://github.com/rmontanana/ArffFiles"
   LANGUAGES CXX

@@ -273,6 +273,50 @@ TEST_CASE("Missing Value Detection", "[ArffFiles][MissingValues]")
     }
 }
 
+TEST_CASE("Path Validation Security", "[ArffFiles][Security]")
+{
+    ArffFiles arff;
+
+    SECTION("Path traversal attempts should be blocked")
+    {
+        REQUIRE_THROWS_AS(arff.load("../../../etc/passwd"), std::invalid_argument);
+        REQUIRE_THROWS_WITH(arff.load("../../../etc/passwd"), "Path traversal detected in file path: ../../../etc/passwd");
+
+        REQUIRE_THROWS_AS(arff.load("..\\..\\windows\\system32\\config\\sam"), std::invalid_argument);
+        REQUIRE_THROWS_WITH(arff.load("..\\..\\windows\\system32\\config\\sam"), "Path traversal detected in file path: ..\\..\\windows\\system32\\config\\sam");
+    }
+
+    SECTION("Path validation should work for valid paths")
+    {
+        // Valid paths should still work and go through validation without issues
+        // This verifies that our validation doesn't break normal functionality
+        REQUIRE_NOTHROW(ArffFiles::summary(Paths::datasets("iris")));
+    }
+
+    SECTION("Excessively long paths should be blocked")
+    {
+        std::string longPath(5000, 'a');
+        longPath += ".arff";
+        REQUIRE_THROWS_AS(arff.load(longPath), std::invalid_argument);
+        REQUIRE_THROWS_WITH(arff.load(longPath), Catch::Matchers::ContainsSubstring("File path too long"));
+    }
+
+    SECTION("Summary functions should also validate paths")
+    {
+        REQUIRE_THROWS_AS(ArffFiles::summary("../../../etc/passwd"), std::invalid_argument);
+        REQUIRE_THROWS_WITH(ArffFiles::summary("../../../etc/passwd"), "Path traversal detected in file path: ../../../etc/passwd");
+
+        REQUIRE_THROWS_AS(ArffFiles::summary("../malicious.arff", "class"), std::invalid_argument);
+        REQUIRE_THROWS_WITH(ArffFiles::summary("../malicious.arff", "class"), "Path traversal detected in file path: ../malicious.arff");
+    }
+
+    SECTION("Valid relative paths should still work")
+    {
+        // This should NOT throw - valid relative paths are allowed
+        REQUIRE_NOTHROW(ArffFiles::summary(Paths::datasets("iris")));
+    }
+}
+
 TEST_CASE("Summary Functionality", "[ArffFiles][Summary]")
 {
     SECTION("Basic summary with class last")
