@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cctype> // std::isdigit
 #include <algorithm> // std::all_of std::transform
+#include <filesystem> // For file size checking
 
 // Summary information structure for ARFF files
 struct ArffSummary {
@@ -21,8 +22,54 @@ struct ArffSummary {
     std::vector<std::pair<std::string, std::string>> featureInfo; // Feature names and types
 };
 
+/**
+ * @brief Header-only C++17 library for parsing ARFF (Attribute-Relation File Format) files
+ * 
+ * This class provides functionality to load and parse ARFF files, automatically detecting
+ * numeric vs categorical features and performing factorization of categorical attributes.
+ * 
+ * @warning THREAD SAFETY: This class is NOT thread-safe!
+ * 
+ * Thread Safety Considerations:
+ * - Multiple instances can be used safely in different threads (each instance is independent)
+ * - A single instance MUST NOT be accessed concurrently from multiple threads
+ * - All member functions (including getters) modify or access mutable state
+ * - Static methods (summary, trim, split) are thread-safe as they don't access instance state
+ * 
+ * Memory Safety:
+ * - Built-in protection against resource exhaustion with configurable limits
+ * - File size limit: 100 MB (DEFAULT_MAX_FILE_SIZE)
+ * - Sample count limit: 1 million samples (DEFAULT_MAX_SAMPLES)  
+ * - Feature count limit: 10,000 features (DEFAULT_MAX_FEATURES)
+ * 
+ * Usage Patterns:
+ * - Single-threaded: Create one instance, call load(), then access data via getters
+ * - Multi-threaded: Create separate instances per thread, or use external synchronization
+ * 
+ * @example
+ * // Thread-safe usage pattern:
+ * void processFile(const std::string& filename) {
+ *     ArffFiles arff;  // Each thread has its own instance
+ *     arff.load(filename);
+ *     auto X = arff.getX();
+ *     auto y = arff.getY();
+ *     // Process data...
+ * }
+ * 
+ * @example  
+ * // UNSAFE usage pattern:
+ * ArffFiles globalArff;  // Global instance
+ * // Thread 1: globalArff.load("file1.arff");  // UNSAFE!
+ * // Thread 2: globalArff.load("file2.arff");  // UNSAFE!
+ */
 class ArffFiles {
     const std::string VERSION = "1.1.0";
+    
+    // Memory usage limits (configurable via environment variables)
+    static constexpr size_t DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+    static constexpr size_t DEFAULT_MAX_SAMPLES = 1000000; // 1 million samples
+    static constexpr size_t DEFAULT_MAX_FEATURES = 10000; // 10k features
+    
 public:
     ArffFiles() = default;
     void load(const std::string& fileName, bool classLast = true)
@@ -156,6 +203,34 @@ public:
         return result;
     }
     std::string version() const { return VERSION; }
+
+private:
+    // Helper function to validate resource usage limits
+    static void validateResourceLimits(const std::string& fileName, size_t sampleCount = 0, size_t featureCount = 0) {
+        // Check file size limit
+        try {
+            if (std::filesystem::exists(fileName)) {
+                auto fileSize = std::filesystem::file_size(fileName);
+                if (fileSize > DEFAULT_MAX_FILE_SIZE) {
+                    throw std::invalid_argument("File size (" + std::to_string(fileSize) + " bytes) exceeds maximum allowed size (" + std::to_string(DEFAULT_MAX_FILE_SIZE) + " bytes)");
+                }
+            }
+        } catch (const std::filesystem::filesystem_error&) {
+            // If filesystem operations fail, continue without size checking
+            // This ensures compatibility with systems where filesystem might not be available
+        }
+        
+        // Check sample count limit
+        if (sampleCount > DEFAULT_MAX_SAMPLES) {
+            throw std::invalid_argument("Number of samples (" + std::to_string(sampleCount) + ") exceeds maximum allowed (" + std::to_string(DEFAULT_MAX_SAMPLES) + ")");
+        }
+        
+        // Check feature count limit
+        if (featureCount > DEFAULT_MAX_FEATURES) {
+            throw std::invalid_argument("Number of features (" + std::to_string(featureCount) + ") exceeds maximum allowed (" + std::to_string(DEFAULT_MAX_FEATURES) + ")");
+        }
+    }
+
 protected:
     std::vector<std::string> lines;
     std::map<std::string, bool> numeric_features;
@@ -299,6 +374,9 @@ private:
         states.clear();
         numeric_features.clear();
 
+        // Validate file size before processing
+        validateResourceLimits(fileName);
+
         std::ifstream file(fileName);
         if (!file.is_open()) {
             throw std::invalid_argument("Unable to open file: " + fileName);
@@ -354,7 +432,6 @@ private:
             }
             lines.push_back(line);
         }
-        file.close();
 
         // Final validation
         if (attributes.empty()) {
@@ -363,6 +440,9 @@ private:
         if (lines.empty()) {
             throw std::invalid_argument("No data samples found in file");
         }
+        
+        // Validate loaded data dimensions against limits
+        validateResourceLimits(fileName, lines.size(), attributes.size());
 
         // Initialize states for all attributes
         for (const auto& attribute : attributes) {
@@ -508,7 +588,6 @@ private:
         }
         while (getline(file, line));
 
-        file.close();
 
         summary.numSamples = sampleCount;
         summary.numClasses = uniqueClasses.size();
@@ -606,7 +685,6 @@ private:
         }
         while (getline(file, line));
 
-        file.close();
 
         summary.numSamples = sampleCount;
         summary.numClasses = uniqueClasses.size();

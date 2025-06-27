@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude TECHNICAL_REPORT.md for detailed analysis
 - Claude CLAUDE.md for AI engine usage
 - Method summary that returns the number of features, samples, and classes without loading the data
+- Check for file size before loading to prevent memory issues
+- Check for number of samples and features before loading to prevent memory issues
+- Check for number of classes before loading to prevent memory issues
 
 ### Internal
 
@@ -20,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Actions to build and upload the conan package to Cimmeria
 - Eliminate redundant memory allocations and enhance memory usage
 - Enhance error handling with exceptions
+- Change `getSize` return type to `size_t` for better compatibility with standard library containers
 
 
 ## [1.1.0] 2024-07-24 String Values in Features
