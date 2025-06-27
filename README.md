@@ -2,8 +2,8 @@
 
 ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=flat&logo=c%2B%2B&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](<https://opensource.org/licenses/MIT>)
-![Gitea Release](https://img.shields.io/gitea/v/release/rmontanana/arfffiles?gitea_url=https://gitea.rmontanana.es:3000)
-![Gitea Last Commit](https://img.shields.io/gitea/last-commit/rmontanana/arfffiles?gitea_url=https://gitea.rmontanana.es:3000&logo=gitea)
+![Gitea Release](https://img.shields.io/gitea/v/release/rmontanana/arfffiles?gitea_url=https://gitea.rmontanana.es)
+![Gitea Last Commit](https://img.shields.io/gitea/last-commit/rmontanana/arfffiles?gitea_url=https://gitea.rmontanana.es&logo=gitea)
 
 A modern C++17 header-only library to read **ARFF (Attribute-Relation File Format)** files and convert them into STL vectors for machine learning and data analysis applications.
 
