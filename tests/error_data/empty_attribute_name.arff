@@ -1,0 +1,9 @@
+@relation test
+
+@attribute feature1 real
+@attribute   real
+@attribute class {A,B}
+
+@data
+1.0,2.0,A
+4.0,5.0,B

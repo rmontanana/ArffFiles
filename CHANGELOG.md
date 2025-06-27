@@ -9,12 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Refactored code to improve readability and maintainability
-- Improved error handling with exceptions
 - Claude TECHNICAL_REPORT.md for detailed analysis
 - Claude CLAUDE.md for AI engine usage
-- Actions to build and upload the conan package to Cimmeria
 
+### Internal
+
+- Refactored code to improve readability and maintainability
+- Improved error handling with exceptions
+- Actions to build and upload the conan package to Cimmeria
+- Eliminate redundant memory allocations and enhance memory usage
+- Enhance error handling with exceptions
 
 
 ## [1.1.0] 2024-07-24 String Values in Features

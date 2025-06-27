@@ -1,0 +1,10 @@
+@relation test
+
+@attribute feature1 string
+@attribute feature2 real
+@attribute class {A,B}
+
+@data
+"What is this?",2.0,A
+"Another question?",5.0,B
+"No question",8.0,A

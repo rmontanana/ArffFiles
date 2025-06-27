@@ -1,0 +1,10 @@
+@relation test
+
+@attribute feature1 real
+@attribute feature2 real
+@attribute class {A,B}
+
+@data
+1.0,2.0,A
+not_a_number,5.0,B
+3.0,4.0,A

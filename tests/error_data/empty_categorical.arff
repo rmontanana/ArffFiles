@@ -1,0 +1,10 @@
+@relation test
+
+@attribute feature1 {X,Y,Z}
+@attribute feature2 real
+@attribute class {A,B}
+
+@data
+X,2.0,A
+,5.0,B
+Z,8.0,A

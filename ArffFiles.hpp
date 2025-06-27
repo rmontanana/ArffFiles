@@ -15,8 +15,18 @@ public:
     ArffFiles() = default;
     void load(const std::string& fileName, bool classLast = true)
     {
+        if (fileName.empty()) {
+            throw std::invalid_argument("File name cannot be empty");
+        }
+        
         int labelIndex;
         loadCommon(fileName);
+        
+        // Validate we have attributes before accessing them
+        if (attributes.empty()) {
+            throw std::invalid_argument("No attributes found in file");
+        }
+        
         if (classLast) {
             className = std::get<0>(attributes.back());
             classType = std::get<1>(attributes.back());
@@ -28,26 +38,45 @@ public:
             attributes.erase(attributes.begin());
             labelIndex = 0;
         }
+        
+        // Validate class name is not empty
+        if (className.empty()) {
+            throw std::invalid_argument("Class attribute name cannot be empty");
+        }
+        
         preprocessDataset(labelIndex);
         generateDataset(labelIndex);
     }
     void load(const std::string& fileName, const std::string& name)
     {
+        if (fileName.empty()) {
+            throw std::invalid_argument("File name cannot be empty");
+        }
+        if (name.empty()) {
+            throw std::invalid_argument("Class name cannot be empty");
+        }
+        
         int labelIndex;
         loadCommon(fileName);
+        
+        // Validate we have attributes before searching
+        if (attributes.empty()) {
+            throw std::invalid_argument("No attributes found in file");
+        }
+        
         bool found = false;
-        for (int i = 0; i < attributes.size(); ++i) {
+        for (size_t i = 0; i < attributes.size(); ++i) {
             if (attributes[i].first == name) {
                 className = std::get<0>(attributes[i]);
                 classType = std::get<1>(attributes[i]);
                 attributes.erase(attributes.begin() + i);
-                labelIndex = i;
+                labelIndex = static_cast<int>(i);
                 found = true;
                 break;
             }
         }
         if (!found) {
-            throw std::invalid_argument("Class name not found");
+            throw std::invalid_argument("Class name '" + name + "' not found in attributes");
         }
         preprocessDataset(labelIndex);
         generateDataset(labelIndex);
@@ -132,6 +161,17 @@ private:
         const size_t numSamples = lines.size();
         const size_t numFeatures = attributes.size();
         
+        // Validate inputs
+        if (numSamples == 0) {
+            throw std::invalid_argument("No data samples found in file");
+        }
+        if (numFeatures == 0) {
+            throw std::invalid_argument("No feature attributes found");
+        }
+        if (labelIndex < 0) {
+            throw std::invalid_argument("Invalid label index: cannot be negative");
+        }
+        
         // Pre-allocate with feature-major layout: X[feature][sample]
         X.assign(numFeatures, std::vector<float>(numSamples));
         
@@ -150,13 +190,26 @@ private:
         for (size_t sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx) {
             const auto tokens = split(lines[sampleIdx], ',');
             
+            // Validate token count matches expected number (features + class)
+            const size_t expectedTokens = numFeatures + 1;
+            if (tokens.size() != expectedTokens) {
+                throw std::invalid_argument("Sample " + std::to_string(sampleIdx) + " has " + std::to_string(tokens.size()) + " tokens, expected " + std::to_string(expectedTokens));
+            }
+            
             int pos = 0;
             int featureIdx = 0;
             
             for (const auto& token : tokens) {
                 if (pos++ == labelIndex) {
+                    if (token.empty()) {
+                        throw std::invalid_argument("Empty class label at sample " + std::to_string(sampleIdx));
+                    }
                     yy.push_back(token);
                 } else {
+                    if (featureIdx >= static_cast<int>(numFeatures)) {
+                        throw std::invalid_argument("Too many feature values at sample " + std::to_string(sampleIdx));
+                    }
+                    
                     const auto& featureName = attributes[featureIdx].first;
                     if (numeric_features.at(featureName)) {
                         // Parse numeric value with exception handling
@@ -167,6 +220,9 @@ private:
                         }
                     } else {
                         // Store categorical value temporarily
+                        if (token.empty()) {
+                            throw std::invalid_argument("Empty categorical value at sample " + std::to_string(sampleIdx) + ", feature " + featureName);
+                        }
                         categoricalData[featureIdx].push_back(token);
                     }
                     featureIdx++;
@@ -191,9 +247,15 @@ private:
     }
     void loadCommon(std::string fileName)
     {
+        // Clear previous data
+        lines.clear();
+        attributes.clear();
+        states.clear();
+        numeric_features.clear();
+        
         std::ifstream file(fileName);
         if (!file.is_open()) {
-            throw std::invalid_argument("Unable to open file");
+            throw std::invalid_argument("Unable to open file: " + fileName);
         }
         std::string line;
         std::string keyword;
@@ -207,6 +269,19 @@ private:
             if (line.find("@attribute") != std::string::npos || line.find("@ATTRIBUTE") != std::string::npos) {
                 std::stringstream ss(line);
                 ss >> keyword >> attribute;
+                
+                // Validate attribute name
+                if (attribute.empty()) {
+                    throw std::invalid_argument("Empty attribute name in line: " + line);
+                }
+                
+                // Check for duplicate attribute names
+                for (const auto& existing : attributes) {
+                    if (existing.first == attribute) {
+                        throw std::invalid_argument("Duplicate attribute name: " + attribute);
+                    }
+                }
+                
                 // Efficiently build type string
                 std::ostringstream typeStream;
                 while (ss >> type_w) {
@@ -214,24 +289,61 @@ private:
                     typeStream << type_w;
                 }
                 type = typeStream.str();
+                
+                // Validate type is not empty
+                if (type.empty()) {
+                    throw std::invalid_argument("Empty attribute type for attribute: " + attribute);
+                }
+                
                 attributes.emplace_back(trim(attribute), trim(type));
                 continue;
             }
             if (line[0] == '@') {
                 continue;
             }
-            if (line.find("?", 0) != std::string::npos) {
-                // ignore lines with missing values
+            // More sophisticated missing value detection
+            // Skip lines with '?' not inside quoted strings
+            if (containsMissingValue(line)) {
                 continue;
             }
             lines.push_back(line);
         }
         file.close();
+        
+        // Final validation
+        if (attributes.empty()) {
+            throw std::invalid_argument("No attributes found in file");
+        }
+        if (lines.empty()) {
+            throw std::invalid_argument("No data samples found in file");
+        }
+        
+        // Initialize states for all attributes
         for (const auto& attribute : attributes) {
             states[attribute.first] = std::vector<std::string>();
         }
-        if (attributes.empty())
-            throw std::invalid_argument("No attributes found");
+    }
+    
+    // Helper function for better missing value detection
+    bool containsMissingValue(const std::string& line) {
+        bool inQuotes = false;
+        char quoteChar = '\0';
+        
+        for (size_t i = 0; i < line.length(); ++i) {
+            char c = line[i];
+            
+            if (!inQuotes && (c == '\'' || c == '\"')) {
+                inQuotes = true;
+                quoteChar = c;
+            } else if (inQuotes && c == quoteChar) {
+                inQuotes = false;
+                quoteChar = '\0';
+            } else if (!inQuotes && c == '?') {
+                // Found unquoted '?' - this is a missing value
+                return true;
+            }
+        }
+        return false;
     }
 };
 

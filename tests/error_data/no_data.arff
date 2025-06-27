@@ -1,0 +1,8 @@
+@relation test
+
+@attribute feature1 real
+@attribute feature2 real
+@attribute class {A,B}
+
+@data
+% No actual data samples
