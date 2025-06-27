@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help build test clean conan-build conan-upload
+.PHONY: help build test clean conan-build
 
 f_debug = build_debug
 test_targets = unit_tests_arffFiles
@@ -47,11 +47,6 @@ test: ## Run tests (opt="-s") to verbose output the tests
 conan-build: ## Build Conan package locally
 	@echo ">>> Building Conan package...";
 	@conan create . --profile default
-	@echo ">>> Done";
-
-conan-upload: ## Upload package to Cimmeria JFrog Artifactory
-	@echo ">>> Uploading to Cimmeria JFrog Artifactory...";
-	@conan upload arff-files --all -r Cimmeria --confirm
 	@echo ">>> Done";
 
 help: ## Show help message
