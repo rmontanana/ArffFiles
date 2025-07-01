@@ -24,28 +24,28 @@ struct ArffSummary {
 
 /**
  * @brief Header-only C++17 library for parsing ARFF (Attribute-Relation File Format) files
- * 
+ *
  * This class provides functionality to load and parse ARFF files, automatically detecting
  * numeric vs categorical features and performing factorization of categorical attributes.
- * 
+ *
  * @warning THREAD SAFETY: This class is NOT thread-safe!
- * 
+ *
  * Thread Safety Considerations:
  * - Multiple instances can be used safely in different threads (each instance is independent)
  * - A single instance MUST NOT be accessed concurrently from multiple threads
  * - All member functions (including getters) modify or access mutable state
  * - Static methods (summary, trim, split) are thread-safe as they don't access instance state
- * 
+ *
  * Memory Safety:
  * - Built-in protection against resource exhaustion with configurable limits
  * - File size limit: 100 MB (DEFAULT_MAX_FILE_SIZE)
- * - Sample count limit: 1 million samples (DEFAULT_MAX_SAMPLES)  
+ * - Sample count limit: 1 million samples (DEFAULT_MAX_SAMPLES)
  * - Feature count limit: 10,000 features (DEFAULT_MAX_FEATURES)
- * 
+ *
  * Usage Patterns:
  * - Single-threaded: Create one instance, call load(), then access data via getters
  * - Multi-threaded: Create separate instances per thread, or use external synchronization
- * 
+ *
  * @example
  * // Thread-safe usage pattern:
  * void processFile(const std::string& filename) {
@@ -55,24 +55,24 @@ struct ArffSummary {
  *     auto y = arff.getY();
  *     // Process data...
  * }
- * 
- * @example  
+ *
+ * @example
  * // UNSAFE usage pattern:
  * ArffFiles globalArff;  // Global instance
  * // Thread 1: globalArff.load("file1.arff");  // UNSAFE!
  * // Thread 2: globalArff.load("file2.arff");  // UNSAFE!
  */
 class ArffFiles {
-    const std::string VERSION = "1.1.0";
-    
+    const std::string VERSION = "1.2.0";
+
     // Memory usage limits (configurable via environment variables)
     static constexpr size_t DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
     static constexpr size_t DEFAULT_MAX_SAMPLES = 1000000; // 1 million samples
     static constexpr size_t DEFAULT_MAX_FEATURES = 10000; // 10k features
-    
+
 public:
     ArffFiles() = default;
-    
+
     // Move constructor
     ArffFiles(ArffFiles&& other) noexcept
         : lines(std::move(other.lines))
@@ -86,7 +86,7 @@ public:
     {
         // Other object is left in a valid but unspecified state
     }
-    
+
     // Move assignment operator
     ArffFiles& operator=(ArffFiles&& other) noexcept
     {
@@ -102,13 +102,13 @@ public:
         }
         return *this;
     }
-    
+
     // Copy constructor (explicitly defaulted)
     ArffFiles(const ArffFiles& other) = default;
-    
+
     // Copy assignment operator (explicitly defaulted)
     ArffFiles& operator=(const ArffFiles& other) = default;
-    
+
     // Destructor (explicitly defaulted)
     ~ArffFiles() = default;
     void load(const std::string& fileName, bool classLast = true)
@@ -231,7 +231,7 @@ public:
     const std::vector<int>& getY() const { return y; }
     const std::map<std::string, bool>& getNumericAttributes() const { return numeric_features; }
     const std::vector<std::pair<std::string, std::string>>& getAttributes() const { return attributes; };
-    
+
     // Move-enabled getters for efficient data transfer
     // WARNING: These methods move data OUT of the object, leaving it in an empty but valid state
     // Use these when you want to transfer ownership of large data structures for performance
@@ -241,7 +241,7 @@ public:
     std::map<std::string, std::vector<std::string>> moveStates() noexcept { return std::move(states); }
     std::vector<std::pair<std::string, std::string>> moveAttributes() noexcept { return std::move(attributes); }
     std::map<std::string, bool> moveNumericAttributes() noexcept { return std::move(numeric_features); }
-    
+
     std::vector<std::string> split(const std::string& text, char delimiter)
     {
         std::vector<std::string> result;
@@ -256,22 +256,23 @@ public:
 
 private:
     // Helper function to validate file path for security
-    static void validateFilePath(const std::string& fileName) {
+    static void validateFilePath(const std::string& fileName)
+    {
         if (fileName.empty()) {
             throw std::invalid_argument("File path cannot be empty");
         }
-        
+
         // Check for path traversal attempts
         if (fileName.find("..") != std::string::npos) {
             throw std::invalid_argument("Path traversal detected in file path: " + fileName);
         }
-        
+
         // Check for absolute paths starting with / (Unix) or drive letters (Windows)
         if (fileName[0] == '/' || (fileName.length() >= 3 && fileName[1] == ':')) {
             // Allow absolute paths but log a warning - this is for user awareness
             // In production, you might want to restrict this based on your security requirements
         }
-        
+
         // Check for suspicious characters that could be used in path manipulation
         const std::string suspiciousChars = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0b\x0c\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f";
         for (char c : suspiciousChars) {
@@ -279,33 +280,35 @@ private:
                 throw std::invalid_argument("Invalid character detected in file path");
             }
         }
-        
+
         // Check for excessively long paths (potential buffer overflow attempts)
         constexpr size_t MAX_PATH_LENGTH = 4096; // Common filesystem limit
         if (fileName.length() > MAX_PATH_LENGTH) {
             throw std::invalid_argument("File path too long (exceeds " + std::to_string(MAX_PATH_LENGTH) + " characters)");
         }
-        
+
         // Additional validation using filesystem operations when available
         try {
             // Check if the file exists and validate its canonical path
             if (std::filesystem::exists(fileName)) {
                 std::filesystem::path normalizedPath = std::filesystem::canonical(fileName);
                 std::string normalizedStr = normalizedPath.string();
-                
+
                 // Check if normalized path still contains traversal attempts
                 if (normalizedStr.find("..") != std::string::npos) {
                     throw std::invalid_argument("Path traversal detected after normalization: " + normalizedStr);
                 }
             }
-        } catch (const std::filesystem::filesystem_error& e) {
+        }
+        catch (const std::filesystem::filesystem_error& e) {
             // If filesystem operations fail, we can still proceed with basic validation
             // This ensures compatibility with systems where filesystem might not be fully available
         }
     }
 
     // Helper function to validate resource usage limits
-    static void validateResourceLimits(const std::string& fileName, size_t sampleCount = 0, size_t featureCount = 0) {
+    static void validateResourceLimits(const std::string& fileName, size_t sampleCount = 0, size_t featureCount = 0)
+    {
         // Check file size limit
         try {
             if (std::filesystem::exists(fileName)) {
@@ -314,16 +317,17 @@ private:
                     throw std::invalid_argument("File size (" + std::to_string(fileSize) + " bytes) exceeds maximum allowed size (" + std::to_string(DEFAULT_MAX_FILE_SIZE) + " bytes)");
                 }
             }
-        } catch (const std::filesystem::filesystem_error&) {
+        }
+        catch (const std::filesystem::filesystem_error&) {
             // If filesystem operations fail, continue without size checking
             // This ensures compatibility with systems where filesystem might not be available
         }
-        
+
         // Check sample count limit
         if (sampleCount > DEFAULT_MAX_SAMPLES) {
             throw std::invalid_argument("Number of samples (" + std::to_string(sampleCount) + ") exceeds maximum allowed (" + std::to_string(DEFAULT_MAX_SAMPLES) + ")");
         }
-        
+
         // Check feature count limit
         if (featureCount > DEFAULT_MAX_FEATURES) {
             throw std::invalid_argument("Number of features (" + std::to_string(featureCount) + ") exceeds maximum allowed (" + std::to_string(DEFAULT_MAX_FEATURES) + ")");
@@ -352,12 +356,12 @@ private:
                 continue;
             auto values = attribute.second;
             std::transform(values.begin(), values.end(), values.begin(), ::toupper);
-            
+
             // Enhanced attribute type detection
             bool isNumeric = values == "REAL" || values == "INTEGER" || values == "NUMERIC";
             bool isDate = values.find("DATE") != std::string::npos;
             bool isString = values == "STRING";
-            
+
             // For now, treat DATE and STRING as categorical (non-numeric)
             // This provides basic compatibility while maintaining existing functionality
             numeric_features[feature] = isNumeric;
@@ -490,7 +494,7 @@ private:
 
         // Validate file path for security
         validateFilePath(fileName);
-        
+
         // Validate file size before processing
         validateResourceLimits(fileName);
 
@@ -507,13 +511,13 @@ private:
             if (line.empty() || line[0] == '%' || line == "\r" || line == " ") {
                 continue;
             }
-            
+
             // Skip sparse data format for now (lines starting with '{')
             // Future enhancement: implement full sparse data support
             if (!line.empty() && line[0] == '{') {
                 continue;
             }
-            
+
             if (line.find("@attribute") != std::string::npos || line.find("@ATTRIBUTE") != std::string::npos) {
                 std::stringstream ss(line);
                 ss >> keyword >> attribute;
@@ -564,7 +568,7 @@ private:
         if (lines.empty()) {
             throw std::invalid_argument("No data samples found in file");
         }
-        
+
         // Validate loaded data dimensions against limits
         validateResourceLimits(fileName, lines.size(), attributes.size());
 
@@ -621,15 +625,16 @@ private:
     }
 
     // Common helper function to parse ARFF file attributes and count samples
-    static int parseArffFile(const std::string& fileName, 
-                            std::vector<std::pair<std::string, std::string>>& attributes,
-                            std::set<std::string>& uniqueClasses,
-                            size_t& sampleCount,
-                            int classIndex = -1,
-                            const std::string& classNameToFind = "") {
+    static int parseArffFile(const std::string& fileName,
+        std::vector<std::pair<std::string, std::string>>& attributes,
+        std::set<std::string>& uniqueClasses,
+        size_t& sampleCount,
+        int classIndex = -1,
+        const std::string& classNameToFind = "")
+    {
         // Validate file path for security
         validateFilePath(fileName);
-        
+
         std::ifstream file(fileName);
         if (!file.is_open()) {
             throw std::invalid_argument("Unable to open file: " + fileName);
@@ -645,12 +650,12 @@ private:
             if (line.empty() || line[0] == '%' || line == "\r" || line == " ") {
                 continue;
             }
-            
+
             // Skip sparse data format for now (lines starting with '{')
             if (!line.empty() && line[0] == '{') {
                 continue;
             }
-            
+
             if (line.find("@attribute") != std::string::npos || line.find("@ATTRIBUTE") != std::string::npos) {
                 std::stringstream ss(line);
                 std::string keyword, attribute, type_w;
@@ -717,7 +722,7 @@ private:
                         // Use specific index
                         classValue = trim(tokens[actualClassIndex]);
                     }
-                    
+
                     if (!classValue.empty()) {
                         uniqueClasses.insert(classValue);
                         sampleCount++;
@@ -726,7 +731,7 @@ private:
             }
         }
         while (getline(file, line));
-        
+
         return actualClassIndex;
     }
 
