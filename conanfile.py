@@ -14,7 +14,14 @@ class ArffFilesConan(ConanFile):
     homepage = "https://github.com/rmontanana/ArffFiles"
     topics = ("arff", "data-processing", "file-parsing", "header-only", "cpp17")
     no_copy_source = True
-    exports_sources = ("ArffFiles.hpp", "LICENSE", "README.md", "CMakeLists.txt", "config/*")
+    exports_sources = (
+        "ArffFiles.hpp",
+        "LICENSE",
+        "README.md",
+        "CMakeLists.txt",
+        "config/*",
+        "cmake/*",
+    )
     package_type = "header-library"
     settings = "build_type", "compiler", "arch", "os"
 
@@ -36,65 +43,36 @@ class ArffFilesConan(ConanFile):
     def layout(self):
         # Only use cmake_layout for conan packaging, not for development builds
         # This can be detected by checking if we're in a conan cache folder
-        import os
-        if (hasattr(self, 'folders') and 
-            hasattr(self.folders, 'base_build') and 
-            self.folders.base_build and 
-            ".conan2" in self.folders.base_build):
+        if (
+            hasattr(self, "folders")
+            and hasattr(self.folders, "base_build")
+            and self.folders.base_build
+            and ".conan2" in self.folders.base_build
+        ):
             from conan.tools.cmake import cmake_layout
+
             cmake_layout(self)
-        
+
     def generate(self):
         # Generate CMake toolchain file
         tc = CMakeToolchain(self)
         tc.generate()
-        
+
         # Generate CMake dependencies file (needed for test requirements like catch2)
         deps = CMakeDeps(self)
         deps.generate()
-    
+
     def build(self):
         # Use CMake to generate the config file through existing config system
         from conan.tools.cmake import CMake
-        import os
-        
-        # Create a minimal CMakeLists.txt for conan build that only generates config
-        minimal_cmake_content = """cmake_minimum_required(VERSION 3.20)
 
-project(ArffFiles
-  VERSION 1.2.1
-  DESCRIPTION "Library to read Arff Files and return STL vectors with the data read."
-  HOMEPAGE_URL "https://github.com/rmontanana/ArffFiles"
-  LANGUAGES CXX
-)
-
-# Subdirectories
-add_subdirectory(config)
-"""
-        
-        # Temporarily rename the files to use minimal CMakeLists.txt
-        original_cmake = os.path.join(self.source_folder, "CMakeLists.txt")
-        minimal_cmake = os.path.join(self.source_folder, "CMakeLists_conan.txt")
-        backup_cmake = os.path.join(self.source_folder, "CMakeLists_backup.txt")
-        
-        # Create minimal CMakeLists.txt
-        with open(minimal_cmake, "w") as f:
-            f.write(minimal_cmake_content)
-        
-        # Backup and replace
-        os.rename(original_cmake, backup_cmake)
-        os.rename(minimal_cmake, original_cmake)
-        
-        try:
-            cmake = CMake(self)
-            cmake.configure()
-            # No need to build anything, just configure to generate the config file
-        finally:
-            # Restore original files
-            os.rename(original_cmake, minimal_cmake)
-            os.rename(backup_cmake, original_cmake)
-            # Clean up temporary file
-            os.remove(minimal_cmake)
+        cmake = CMake(self)
+        # Configure with minimal options - just enough to generate the config file
+        cmake.configure(
+            build_script_folder=None,
+            cli_args=["-DENABLE_TESTING=OFF", "-DCODE_COVERAGE=OFF"],
+        )
+        # No need to build anything, just configure to generate the config file
 
     def package(self):
         # Copy header file
