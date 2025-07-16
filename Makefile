@@ -25,10 +25,12 @@ clean: ## Clean the tests info
 	@echo ">>> Done";
 
 build: ## Build a debug version of the project
-	@echo ">>> Building Debug ArffFiles...";
-	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
+	@echo ">>> Building Debug Folding...";
+	@if [ -d $(f_debug) ]; then rm -rf $(f_debug); fi
 	@mkdir $(f_debug); 
-	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON
+	conan install . -of $(f_debug) -s build_type=Debug -b missing 
+	cmake -B $(f_debug) -S . -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$(f_debug)/conan_toolchain.cmake -DENABLE_TESTING=ON
+	cmake --build $(f_debug) -t $(test_targets) $(n_procs)
 	@echo ">>> Done";
 
 opt = ""
