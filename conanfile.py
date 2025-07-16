@@ -34,9 +34,15 @@ class ArffFilesConan(ConanFile):
         self.test_requires("catch2/3.8.1")
 
     def layout(self):
-        # Use cmake_layout for proper build folder structure  
-        from conan.tools.cmake import cmake_layout
-        cmake_layout(self)
+        # Only use cmake_layout for conan packaging, not for development builds
+        # This can be detected by checking if we're in a conan cache folder
+        import os
+        if (hasattr(self, 'folders') and 
+            hasattr(self.folders, 'base_build') and 
+            self.folders.base_build and 
+            ".conan2" in self.folders.base_build):
+            from conan.tools.cmake import cmake_layout
+            cmake_layout(self)
         
     def generate(self):
         # Generate CMake toolchain file
@@ -46,10 +52,14 @@ class ArffFilesConan(ConanFile):
         # Generate CMake dependencies file (needed for test requirements like catch2)
         deps = CMakeDeps(self)
         deps.generate()
+    
+    def build(self):
+        # Use CMake to generate the config file through existing config system
+        from conan.tools.cmake import CMake
+        import os
         
         # Create a minimal CMakeLists.txt for conan build that only generates config
-        import os
-        minimal_cmake = """cmake_minimum_required(VERSION 3.20)
+        minimal_cmake_content = """cmake_minimum_required(VERSION 3.20)
 
 project(ArffFiles
   VERSION 1.2.1
@@ -61,18 +71,15 @@ project(ArffFiles
 # Subdirectories
 add_subdirectory(config)
 """
-        with open(os.path.join(self.source_folder, "CMakeLists_conan.txt"), "w") as f:
-            f.write(minimal_cmake)
-    
-    def build(self):
-        # Use CMake to generate the config file through existing config system
-        from conan.tools.cmake import CMake
-        import os
         
         # Temporarily rename the files to use minimal CMakeLists.txt
         original_cmake = os.path.join(self.source_folder, "CMakeLists.txt")
         minimal_cmake = os.path.join(self.source_folder, "CMakeLists_conan.txt")
         backup_cmake = os.path.join(self.source_folder, "CMakeLists_backup.txt")
+        
+        # Create minimal CMakeLists.txt
+        with open(minimal_cmake, "w") as f:
+            f.write(minimal_cmake_content)
         
         # Backup and replace
         os.rename(original_cmake, backup_cmake)
@@ -86,6 +93,8 @@ add_subdirectory(config)
             # Restore original files
             os.rename(original_cmake, minimal_cmake)
             os.rename(backup_cmake, original_cmake)
+            # Clean up temporary file
+            os.remove(minimal_cmake)
 
     def package(self):
         # Copy header file
