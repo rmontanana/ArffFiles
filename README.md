@@ -29,10 +29,10 @@ A modern C++17 header-only library to read **ARFF (Attribute-Relation File Forma
 ```bash
 # Add the package to your conanfile.txt
 [requires]
-arff-files/1.2.0
+arff-files/1.2.1
 
 # Or install directly
-conan install arff-files/1.2.0@
+conan install arff-files/1.2.1@
 ```
 
 ### Manual Installation

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(ArffFiles
-  VERSION 1.2.0
+  VERSION 1.2.1
   DESCRIPTION "Library to read Arff Files and return STL vectors with the data read."
   HOMEPAGE_URL "https://github.com/rmontanana/ArffFiles"
   LANGUAGES CXX
@@ -41,14 +41,60 @@ add_subdirectory(config)
 # -------
 if (ENABLE_TESTING)
   MESSAGE("Testing enabled")
-  Include(FetchContent)
-    FetchContent_Declare(Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG        v3.3.2
-    )
-    FetchContent_MakeAvailable(Catch2)
+  find_package(Catch2 REQUIRED)
   include(CTest)
   add_subdirectory(tests)
 endif (ENABLE_TESTING)
 
 add_library(ArffFiles INTERFACE ArffFiles.hpp)
+
+target_include_directories(ArffFiles INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/configured_files/include>
+    $<INSTALL_INTERFACE:include>
+)
+# Install
+# -------
+install(TARGETS ArffFiles EXPORT ArffFilesTargets
+  INCLUDES DESTINATION include
+)
+install(EXPORT ArffFilesTargets
+  FILE ArffFilesTargets.cmake
+  NAMESPACE ArffFiles::
+  DESTINATION lib/cmake/ArffFiles
+)
+
+# Install the main header file
+install(FILES ArffFiles.hpp
+  DESTINATION include
+)
+
+# Install the generated configuration header
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/configured_files/include/arffFiles_config.h"
+  DESTINATION include
+)
+
+# Install documentation files
+install(FILES LICENSE README.md
+  DESTINATION share/doc/ArffFiles
+)
+
+# Create and install package configuration files
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/ArffFilesConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ArffFilesConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/ArffFilesConfig.cmake"
+  INSTALL_DESTINATION lib/cmake/ArffFiles
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/ArffFilesConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/ArffFilesConfigVersion.cmake"
+  DESTINATION lib/cmake/ArffFiles
+)

@@ -3,7 +3,6 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 #include "ArffFiles.hpp"
-#include "arffFiles_config.h"
 #include <iostream>
 
 class Paths {
@@ -28,7 +27,7 @@ public:
 TEST_CASE("Version Test", "[ArffFiles]")
 {
     ArffFiles arff;
-    REQUIRE(arff.version() == "1.1.0");
+    REQUIRE(arff.version() == "1.2.1");
 }
 TEST_CASE("Load Test", "[ArffFiles]")
 {

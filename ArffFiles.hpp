@@ -10,6 +10,8 @@
 #include <cctype> // std::isdigit
 #include <algorithm> // std::all_of std::transform
 #include <filesystem> // For file size checking
+#include "arffFiles_config.h"
+
 
 // Summary information structure for ARFF files
 struct ArffSummary {
@@ -63,8 +65,7 @@ struct ArffSummary {
  * // Thread 2: globalArff.load("file2.arff");  // UNSAFE!
  */
 class ArffFiles {
-    const std::string VERSION = "1.2.0";
-
+private:
     // Memory usage limits (configurable via environment variables)
     static constexpr size_t DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
     static constexpr size_t DEFAULT_MAX_SAMPLES = 1000000; // 1 million samples
@@ -103,11 +104,11 @@ public:
         return *this;
     }
 
-    // Copy constructor (explicitly defaulted)
-    ArffFiles(const ArffFiles& other) = default;
+    // Copy constructor (explicitly delete)
+    ArffFiles(const ArffFiles& other) = delete;
 
-    // Copy assignment operator (explicitly defaulted)
-    ArffFiles& operator=(const ArffFiles& other) = default;
+    // Copy assignment operator (explicitly deleted)
+    ArffFiles& operator=(const ArffFiles& other) = delete;
 
     // Destructor (explicitly defaulted)
     ~ArffFiles() = default;
@@ -252,7 +253,7 @@ public:
         }
         return result;
     }
-    std::string version() const { return VERSION; }
+    std::string version() const { return ARFFLIB_VERSION; }
 
 private:
     // Helper function to validate file path for security
